@@ -62,7 +62,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <header>
   <h1>RIDER DODGER</h1>
   <p class="tag">You are the rider. Rain is the enemy. Stay dry, go further.</p>
-  <div id="pilot">WET JADE PILOT v7 · visual rebuild test · not the live game</div>
+  <div id="pilot">WET JADE PILOT v8 · visual rebuild test · not the live game</div>
 </header>
 <div id="hud"><span id="score">Distance: 0m</span><span id="hearts">💧💧💧</span><span id="best">Best: 0m</span></div>
 <div id="msg">Swipe left / right to change lane. Tap or swipe up to jump.</div>
@@ -113,6 +113,24 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   var bikeImg = new Image(), bikeReady = false;
   bikeImg.onload = function(){ bikeReady = true; };
   bikeImg.src = "bike-sprite.webp";
+  /* Wet asphalt texture (v8): the road surface itself, perspective-
+     mapped onto the plate's street and scrolled at exactly the
+     obstacles' approach speed, so the ground moves under the rider.
+     The texture is stacked with its own mirror image, which makes
+     the scroll wrap seamless. Flow cues alone remain the fallback. */
+  var texImg = new Image(), texReady = false, texCanvas = null;
+  texImg.onload = function(){
+    try {
+      texCanvas = document.createElement("canvas");
+      texCanvas.width = 512; texCanvas.height = 1024;
+      var tc = texCanvas.getContext("2d");
+      tc.drawImage(texImg, 0, 0, 512, 512);
+      tc.save(); tc.translate(0, 1024); tc.scale(1, -1);
+      tc.drawImage(texImg, 0, 0, 512, 512); tc.restore();
+      texReady = true;
+    } catch (e) { texReady = false; }
+  };
+  texImg.src = "asphalt-tex.webp";
   function load(k, d){
     try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
   }
@@ -478,6 +496,52 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       ctx.closePath(); ctx.fill();
     }
   }
+  function drawRoadSurface(){
+    var BANDS = 40, K = 3;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(200 - roadHalf(0), HY); ctx.lineTo(200 + roadHalf(0), HY);
+    ctx.lineTo(200 + roadHalf(1), H); ctx.lineTo(200 - roadHalf(1), H);
+    ctx.closePath(); ctx.clip();
+    for (var b = 0; b < BANDS; b++){
+      var zA = b / BANDS, zB = (b + 1) / BANDS;
+      var yA = roadY(zA), yB = roadY(zB);
+      if (yB - yA < 0.4) continue;
+      var vA = (1 - zA) * K + distance * 0.06 * K;
+      var vB = (1 - zB) * K + distance * 0.06 * K;
+      var sTop = ((vA % 2) + 2) % 2 * 512, sLen = Math.abs(vA - vB) * 512;
+      var dx = 200 - roadHalf(zB) * 0.995, dw = roadHalf(zB) * 1.99;
+      var drawn = 0;
+      while (drawn < sLen){
+        var sNow = (sTop + drawn) % 1024;
+        var part = Math.min(sLen - drawn, 1024 - sNow);
+        var dyA = yA + (yB - yA) * (drawn / sLen), dyB = yA + (yB - yA) * ((drawn + part) / sLen);
+        ctx.drawImage(texCanvas, 0, sNow, 512, part, dx, dyA, dw, dyB - dyA + 0.6);
+        drawn += part;
+      }
+    }
+    /* Marry the texture to the plate's light: mint wash on the left,
+       coral on the right, warm in the middle, dark into the horizon. */
+    var tint = ctx.createLinearGradient(0, 0, W, 0);
+    tint.addColorStop(0, "rgba(64,255,190,0.13)"); tint.addColorStop(0.5, "rgba(255,240,214,0.05)"); tint.addColorStop(1, "rgba(255,110,80,0.13)");
+    ctx.fillStyle = tint; ctx.fillRect(0, HY, W, H - HY);
+    var fade = ctx.createLinearGradient(0, HY, 0, HY + 130);
+    fade.addColorStop(0, "rgba(4,12,9,0.66)"); fade.addColorStop(1, "rgba(4,12,9,0)");
+    ctx.fillStyle = fade; ctx.fillRect(0, HY, W, H - HY);
+    var sheen2 = ctx.createLinearGradient(0, HY, 0, H);
+    sheen2.addColorStop(0, "rgba(200,255,230,0)"); sheen2.addColorStop(1, "rgba(200,255,230,0.05)");
+    ctx.fillStyle = sheen2; ctx.fillRect(0, HY, W, H - HY);
+    ctx.restore();
+    ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 3;
+    [-1, 1].forEach(function(side){
+      ctx.beginPath();
+      for (var s2 = 0; s2 <= 20; s2++){
+        var zz = s2 / 20, px = 200 + side * roadHalf(zz) * 0.995, py = roadY(zz);
+        if (s2 === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    });
+  }
   function drawFlowCues(){
     ctx.save(); ctx.lineCap = "round";
     [-0.3, 0.3].forEach(function(off){
@@ -535,8 +599,10 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
        plate paints the city there when it is loaded). */
     if (!envReady){ ctx.fillStyle = "#030c07"; ctx.fillRect(0, HY, W, H - HY); }
     if (envReady){
-      /* v6: the plate's painted street IS the road. No drawn surface
-         over it; speed reads from flow streaks and rain ripples. */
+      /* v6/v8: ride on the plate's street. The asphalt texture flows
+         in perspective at the hazards' own speed; streaks and rain
+         ripples ride on top. Until the texture loads, cues only. */
+      if (texReady) drawRoadSurface();
       drawFlowCues();
     }
     /* Soft seat shadow so the road sits IN the painted city. */
