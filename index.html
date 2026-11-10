@@ -62,7 +62,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <header>
   <h1>RIDER DODGER</h1>
   <p class="tag">You are the rider. Rain is the enemy. Stay dry, go further.</p>
-  <div id="pilot">WET JADE PILOT v2 · visual rebuild test · not the live game</div>
+  <div id="pilot">WET JADE PILOT v3 · visual rebuild test · not the live game</div>
 </header>
 <div id="hud"><span id="score">Distance: 0m</span><span id="hearts">💧💧💧</span><span id="best">Best: 0m</span></div>
 <div id="msg">Swipe left / right to change lane. Tap or swipe up to jump.</div>
@@ -83,7 +83,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <script>
 (function(){
   "use strict";
-  var W = 400, H = 520, HY = 185, ZC = 0.93;
+  var W = 400, H = 520, HY = 200, ZC = 0.91;
   var canvas = document.getElementById("game");
   var ctx = canvas.getContext("2d");
   function fitDpr(){
@@ -100,6 +100,13 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   var skyImg = new Image(), skyReady = false;
   skyImg.onload = function(){ skyReady = true; };
   skyImg.src = "storm-plate.webp";
+  /* Full-scene environment plate (v3): the AI city continues down
+     both sides of the road, so the whole canvas is one world and
+     only the road itself is game surface. Falls back to the sky
+     plate plus painted ground until (or unless) it loads. */
+  var envImg = new Image(), envReady = false;
+  envImg.onload = function(){ envReady = true; };
+  envImg.src = "env-plate.webp";
   function load(k, d){
     try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
   }
@@ -109,7 +116,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   var best = load("rdw-best", 0);
   var runs = load("rdw-runs", []);
   var soundOn = load("rdw-sound", true);
-  var calm = load("rdw-calm", false);
+  var calm = load("rdw-calm", true);
   var state = "ready"; // ready | playing | paused | over
   var lane = 1, riderY = 0, vy = 0, jumping = false, riderX = 200;
   var distance = 0, speed = 2.0, spawnTimer = 0, tick = 0, elapsed = 0;
@@ -241,7 +248,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
      The power curve bunches depth near the horizon, like a real road. */
   function persp(z){ return Math.pow(z, 1.75); }
   function roadY(z){ return HY + (H - HY) * persp(z); }
-  function roadHalf(z){ return 42 + 148 * persp(z); }
+  function roadHalf(z){ return 26 + 106 * persp(z); }
   function laneX(l, z){ return 200 + (l - 1) * roadHalf(z) * 0.6; }
   var lastTs = 0, STEP_MS = 1000 / 60;
   function step(ts){
@@ -404,7 +411,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       ctx.beginPath(); ctx.moveTo(x, y - r * 4.4); ctx.lineTo(x, y - r * 1.2); ctx.stroke();
       ctx.fillStyle = "#d9ffee"; ctx.beginPath(); ctx.arc(x, y - r * 0.6, r * 0.62, 0, Math.PI * 2); ctx.fill();
     } else if (ob.type === "puddle"){
-      var pw = 10 + 58 * p, ph = pw * 0.3;
+      var pw = 6 + roadHalf(ob.z) * 0.36, ph = pw * 0.3;
       var pg = ctx.createRadialGradient(x, y, 1, x, y, pw * 0.55);
       pg.addColorStop(0, "rgba(140,255,205,0.4)"); pg.addColorStop(0.7, "rgba(30,120,90,0.35)"); pg.addColorStop(1, "rgba(10,40,28,0.1)");
       ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(x, y, pw * 0.55, ph * 0.55, 0, 0, Math.PI * 2); ctx.fill();
@@ -434,11 +441,19 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   }
   function draw(){
     ctx.clearRect(0, 0, W, H);
+    /* Full-scene environment plate fills the whole canvas when it
+       has loaded; the road is drawn over its painted corridor. */
+    if (envReady){
+      var ew = envImg.naturalWidth, eh = envImg.naturalHeight;
+      var eScale = Math.max(W / ew, H / eh);
+      var edw = ew * eScale, edh = eh * eScale;
+      ctx.drawImage(envImg, (W - edw) / 2, (H - edh) / 2, edw, edh);
+    }
     /* Sky: generated storm plate over a painted gradient fallback. */
     var skyGrad = ctx.createLinearGradient(0, 0, 0, HY + 8);
     skyGrad.addColorStop(0, "#04101a"); skyGrad.addColorStop(1, "#0a2e22");
     ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, HY + 8);
-    if (skyReady){
+    if (!envReady && skyReady){
       var iw = skyImg.naturalWidth, ih = skyImg.naturalHeight;
       var scale = Math.max(W / iw, (HY + 26) / ih);
       var dw = iw * scale, dh = ih * scale;
@@ -452,8 +467,15 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     var hg = ctx.createRadialGradient(200, HY, 4, 200, HY, 130);
     hg.addColorStop(0, "rgba(46,230,168,0.30)"); hg.addColorStop(1, "rgba(46,230,168,0)");
     ctx.fillStyle = hg; ctx.fillRect(60, HY - 60, 280, 130);
-    /* Ground beside the road. */
-    ctx.fillStyle = "#030c07"; ctx.fillRect(0, HY, W, H - HY);
+    /* Ground beside the road (fallback only; the environment
+       plate paints the city there when it is loaded). */
+    if (!envReady){ ctx.fillStyle = "#030c07"; ctx.fillRect(0, HY, W, H - HY); }
+    /* Soft seat shadow so the road sits IN the painted city. */
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.beginPath();
+    ctx.moveTo(200 - roadHalf(0) - 7, HY); ctx.lineTo(200 + roadHalf(0) + 7, HY);
+    ctx.lineTo(200 + roadHalf(1) + 12, H); ctx.lineTo(200 - roadHalf(1) - 12, H);
+    ctx.closePath(); ctx.fill();
     /* Road bands: alternating wet asphalt shades, scrolling with
        distance so speed reads on the surface itself. */
     var BANDS = 16, scrollFrac = (distance * (calm ? 0.22 : 0.38)) % 1;
