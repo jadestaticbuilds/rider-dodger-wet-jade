@@ -62,7 +62,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <header>
   <h1>RIDER DODGER</h1>
   <p class="tag">You are the rider. Rain is the enemy. Stay dry, go further.</p>
-  <div id="pilot">WET JADE PILOT v8 · visual rebuild test · not the live game</div>
+  <div id="pilot">WET JADE PILOT v9 · visual rebuild test · not the live game</div>
 </header>
 <div id="hud"><span id="score">Distance: 0m</span><span id="hearts">💧💧💧</span><span id="best">Best: 0m</span></div>
 <div id="msg">Swipe left / right to change lane. Tap or swipe up to jump.</div>
@@ -106,7 +106,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
      plate plus painted ground until (or unless) it loads. */
   var envImg = new Image(), envReady = false;
   envImg.onload = function(){ envReady = true; };
-  envImg.src = "miami-plate.webp";
+  envImg.src = "narrow-plate.webp";
   /* Photoreal bike sprite (v6): a generated rear-view adventure bike
      and rider, cut out and night-graded at build time. The drawn
      vector bike below remains the fallback until (or unless) it loads. */
@@ -275,8 +275,8 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
      The power curve bunches depth near the horizon, like a real road. */
   function persp(z){ return Math.pow(z, 1.75); }
   function roadY(z){ return HY + (H - HY) * persp(z); }
-  function roadHalf(z){ return 20 + 165 * persp(z); }
-  function laneX(l, z){ return 200 + (l - 1) * roadHalf(z) * 0.76; }
+  function roadHalf(z){ return 6 + 95 * persp(z); }
+  function laneX(l, z){ return 200 + (l - 1) * roadHalf(z) * 0.64; }
   var lastTs = 0, STEP_MS = 1000 / 60;
   function step(ts){
     var dt = 1;
@@ -375,10 +375,10 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       /* v6 sprite bike: the photoreal machine, mirrored faintly on
          the wet street. Rotation around the contact point is the lean. */
       var yS = groundY - riderY;
-      var dispW = 118, dispH = dispW * (897 / 520);
+      var dispW = 100, dispH = dispW * (897 / 520);
       var base = yS + 4;
       ctx.fillStyle = "rgba(0,0,0,0.4)";
-      ctx.beginPath(); ctx.ellipse(x, groundY + 6, 52 - riderY * 0.12, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x, groundY + 6, 42 - riderY * 0.1, 8, 0, 0, Math.PI * 2); ctx.fill();
       ctx.save();
       ctx.translate(x, base); ctx.scale(1, -0.4); ctx.globalAlpha = 0.15;
       ctx.drawImage(bikeImg, -dispW / 2, -dispH, dispW, dispH);
@@ -544,7 +544,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   }
   function drawFlowCues(){
     ctx.save(); ctx.lineCap = "round";
-    [-0.3, 0.3].forEach(function(off){
+    [-0.32, 0.32].forEach(function(off){
       streakZ.forEach(function(z){
         var p = persp(z), y0 = roadY(z), y1 = roadY(Math.min(1, z + 0.085));
         var x = 200 + off * roadHalf(z);
