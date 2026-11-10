@@ -62,7 +62,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <header>
   <h1>RIDER DODGER</h1>
   <p class="tag">You are the rider. Rain is the enemy. Stay dry, go further.</p>
-  <div id="pilot">WET JADE PILOT v5 · visual rebuild test · not the live game</div>
+  <div id="pilot">WET JADE PILOT v6 · visual rebuild test · not the live game</div>
 </header>
 <div id="hud"><span id="score">Distance: 0m</span><span id="hearts">💧💧💧</span><span id="best">Best: 0m</span></div>
 <div id="msg">Swipe left / right to change lane. Tap or swipe up to jump.</div>
@@ -107,6 +107,12 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   var envImg = new Image(), envReady = false;
   envImg.onload = function(){ envReady = true; };
   envImg.src = "miami-plate.webp";
+  /* Photoreal bike sprite (v6): a generated rear-view adventure bike
+     and rider, cut out and night-graded at build time. The drawn
+     vector bike below remains the fallback until (or unless) it loads. */
+  var bikeImg = new Image(), bikeReady = false;
+  bikeImg.onload = function(){ bikeReady = true; };
+  bikeImg.src = "bike-sprite.webp";
   function load(k, d){
     try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
   }
@@ -122,6 +128,9 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   var distance = 0, speed = 2.0, spawnTimer = 0, tick = 0, elapsed = 0;
   var hearts = 3, invuln = 0, obstacles = [], particles = [], splash = 0;
   var flash = 0, nextFlash = 500 + Math.random() * 500;
+  /* v6 speed cues for riding on the plate's own street: warm light
+     streaks flowing down the lane dividers, plus rain ripples. */
+  var streakZ = [0.05, 0.28, 0.52, 0.76, 0.96], ripples = [], rippleT = 0;
   var scoreEl = document.getElementById("score");
   var bestEl = document.getElementById("best");
   var heartsEl = document.getElementById("hearts");
@@ -311,6 +320,17 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
           }
         }
       }
+      var dzF = speed * 0.0036 * dt;
+      streakZ = streakZ.map(function(z){ z += dzF; return z > 1.04 ? z - 1.04 : z; });
+      rippleT -= dt;
+      if (rippleT <= 0 && ripples.length < (calm ? 7 : 14)){
+        ripples.push({fx: (Math.random() * 2 - 1) * 0.95, z: 0.3 + Math.random() * 0.68, life: 1});
+        rippleT = calm ? 13 : 6;
+      }
+      for (var rI = ripples.length - 1; rI >= 0; rI--){
+        ripples[rI].life -= dt * 0.028;
+        if (ripples[rI].life <= 0) ripples.splice(rI, 1);
+      }
       for (var j = particles.length - 1; j >= 0; j--){
         var p = particles[j]; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 0.15 * dt; p.life -= dt;
         if (p.life <= 0) particles.splice(j, 1);
@@ -333,6 +353,25 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     ctx.closePath();
   }
   function drawBike(x, groundY){
+    if (bikeReady){
+      /* v6 sprite bike: the photoreal machine, mirrored faintly on
+         the wet street. Rotation around the contact point is the lean. */
+      var yS = groundY - riderY;
+      var dispW = 118, dispH = dispW * (897 / 520);
+      var base = yS + 4;
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.beginPath(); ctx.ellipse(x, groundY + 6, 52 - riderY * 0.12, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(x, base); ctx.scale(1, -0.4); ctx.globalAlpha = 0.15;
+      ctx.drawImage(bikeImg, -dispW / 2, -dispH, dispW, dispH);
+      ctx.restore();
+      var leanS = Math.max(-0.05, Math.min(0.05, (laneX(lane, 1) - x) * 0.0012));
+      ctx.save();
+      ctx.translate(x, base); ctx.rotate(leanS * 2);
+      ctx.drawImage(bikeImg, -dispW / 2, -dispH, dispW, dispH);
+      ctx.restore();
+      return;
+    }
     var y = groundY - riderY;
     /* Ground shadow stays on the road and shrinks as the bike lifts. */
     ctx.fillStyle = "rgba(0,0,0,0.4)";
@@ -413,11 +452,11 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     } else if (ob.type === "puddle"){
       var pw = 6 + roadHalf(ob.z) * 0.36, ph = pw * 0.3;
       var pg = ctx.createRadialGradient(x, y, 1, x, y, pw * 0.55);
-      pg.addColorStop(0, "rgba(140,255,205,0.4)"); pg.addColorStop(0.7, "rgba(30,120,90,0.35)"); pg.addColorStop(1, "rgba(10,40,28,0.1)");
+      pg.addColorStop(0, "rgba(190,238,214,0.38)"); pg.addColorStop(0.7, "rgba(38,110,88,0.32)"); pg.addColorStop(1, "rgba(8,30,22,0.08)");
       ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(x, y, pw * 0.55, ph * 0.55, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = "rgba(120,255,195,0.5)"; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.ellipse(x, y, pw * 0.55, ph * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = "rgba(230,255,245,0.5)";
+      ctx.fillStyle = "rgba(255,246,224,0.35)";
       ctx.beginPath(); ctx.ellipse(x - pw * 0.16, y - ph * 0.14, pw * 0.16, ph * 0.16, 0, 0, Math.PI * 2); ctx.fill();
     } else {
       /* Gust: a sheet of sideways streaks filling the lane, with an
@@ -438,6 +477,26 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       ctx.moveTo(ax, ay - as); ctx.lineTo(ax + ob.dir * as * 1.5, ay); ctx.lineTo(ax, ay + as);
       ctx.closePath(); ctx.fill();
     }
+  }
+  function drawFlowCues(){
+    ctx.save(); ctx.lineCap = "round";
+    [-0.3, 0.3].forEach(function(off){
+      streakZ.forEach(function(z){
+        var p = persp(z), y0 = roadY(z), y1 = roadY(Math.min(1, z + 0.085));
+        var x = 200 + off * roadHalf(z);
+        ctx.strokeStyle = "rgba(255,238,205," + ((calm ? 0.10 : 0.17) * (0.35 + p)).toFixed(3) + ")";
+        ctx.lineWidth = Math.max(1, 3.2 * p);
+        ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke();
+      });
+    });
+    ripples.forEach(function(r){
+      var p = persp(r.z), x = 200 + r.fx * roadHalf(r.z), y = roadY(r.z);
+      var rx = (3 + (1 - r.life) * 17) * (0.3 + p);
+      ctx.strokeStyle = "rgba(190,235,215," + (0.20 * r.life * (calm ? 0.6 : 1)).toFixed(3) + ")";
+      ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.34, 0, 0, Math.PI * 2); ctx.stroke();
+    });
+    ctx.restore();
   }
   function draw(){
     ctx.clearRect(0, 0, W, H);
@@ -475,15 +534,20 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     /* Ground beside the road (fallback only; the environment
        plate paints the city there when it is loaded). */
     if (!envReady){ ctx.fillStyle = "#030c07"; ctx.fillRect(0, HY, W, H - HY); }
+    if (envReady){
+      /* v6: the plate's painted street IS the road. No drawn surface
+         over it; speed reads from flow streaks and rain ripples. */
+      drawFlowCues();
+    }
     /* Soft seat shadow so the road sits IN the painted city. */
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    if (!envReady) ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.beginPath();
     ctx.moveTo(200 - roadHalf(0) - 7, HY); ctx.lineTo(200 + roadHalf(0) + 7, HY);
     ctx.lineTo(200 + roadHalf(1) + 12, H); ctx.lineTo(200 - roadHalf(1) - 12, H);
-    ctx.closePath(); ctx.fill();
-    /* Road bands: alternating wet asphalt shades, scrolling with
-       distance so speed reads on the surface itself. */
-    var BANDS = 16, scrollFrac = (distance * (calm ? 0.22 : 0.38)) % 1;
+    ctx.closePath(); if (!envReady) ctx.fill();
+    /* Road bands (fallback surface, only while the plate is absent):
+       alternating wet asphalt shades, scrolling with distance. */
+    var BANDS = envReady ? 0 : 16, scrollFrac = (distance * (calm ? 0.22 : 0.38)) % 1;
     for (var b = BANDS - 1; b >= 0; b--){
       var f0 = (b + scrollFrac) / BANDS, f1 = (b + 1 + scrollFrac) / BANDS;
       if (f0 > 1) continue;
@@ -507,8 +571,8 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
         });
       }
     }
-    /* Jade edge lines along both shoulders. */
-    [-1, 1].forEach(function(side){
+    /* Jade edge lines along both shoulders (fallback surface only). */
+    if (!envReady) [-1, 1].forEach(function(side){
       ctx.strokeStyle = "rgba(46,230,168,0.5)"; ctx.lineWidth = 2;
       ctx.beginPath();
       for (var s2 = 0; s2 <= 20; s2++){
@@ -517,14 +581,14 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       }
       ctx.stroke();
     });
-    /* Wet sheen sweeping the lower road. */
+    /* Wet sheen sweeping the lower road (fallback surface only). */
     var sheen = ctx.createLinearGradient(0, HY, 0, H);
     sheen.addColorStop(0, "rgba(120,255,195,0)"); sheen.addColorStop(1, "rgba(120,255,195,0.07)");
     ctx.fillStyle = sheen;
     ctx.beginPath();
     ctx.moveTo(200 - roadHalf(0), HY); ctx.lineTo(200 + roadHalf(0), HY);
     ctx.lineTo(200 + roadHalf(1), H); ctx.lineTo(200 - roadHalf(1), H);
-    ctx.closePath(); ctx.fill();
+    ctx.closePath(); if (!envReady) ctx.fill();
     /* Obstacles, far ones first so near ones paint over them. */
     obstacles.slice().sort(function(a, c){ return a.z - c.z; }).forEach(drawObstacle);
     /* Rider (blinked out on alternating ticks while invulnerable). */
