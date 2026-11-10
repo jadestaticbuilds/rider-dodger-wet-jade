@@ -62,7 +62,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <header>
   <h1>RIDER DODGER</h1>
   <p class="tag">You are the rider. Rain is the enemy. Stay dry, go further.</p>
-  <div id="pilot">WET JADE PILOT v3 · visual rebuild test · not the live game</div>
+  <div id="pilot">WET JADE PILOT v4 · visual rebuild test · not the live game</div>
 </header>
 <div id="hud"><span id="score">Distance: 0m</span><span id="hearts">💧💧💧</span><span id="best">Best: 0m</span></div>
 <div id="msg">Swipe left / right to change lane. Tap or swipe up to jump.</div>
@@ -83,7 +83,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <script>
 (function(){
   "use strict";
-  var W = 400, H = 520, HY = 200, ZC = 0.91;
+  var W = 400, H = 520, HY = 270, ZC = 0.88;
   var canvas = document.getElementById("game");
   var ctx = canvas.getContext("2d");
   function fitDpr(){
@@ -106,7 +106,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
      plate plus painted ground until (or unless) it loads. */
   var envImg = new Image(), envReady = false;
   envImg.onload = function(){ envReady = true; };
-  envImg.src = "env-plate.webp";
+  envImg.src = "street-plate.webp";
   function load(k, d){
     try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
   }
@@ -248,7 +248,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
      The power curve bunches depth near the horizon, like a real road. */
   function persp(z){ return Math.pow(z, 1.75); }
   function roadY(z){ return HY + (H - HY) * persp(z); }
-  function roadHalf(z){ return 26 + 106 * persp(z); }
+  function roadHalf(z){ return 20 + 165 * persp(z); }
   function laneX(l, z){ return 200 + (l - 1) * roadHalf(z) * 0.6; }
   var lastTs = 0, STEP_MS = 1000 / 60;
   function step(ts){
@@ -336,17 +336,17 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     var y = groundY - riderY;
     /* Ground shadow stays on the road and shrinks as the bike lifts. */
     ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.beginPath(); ctx.ellipse(x, groundY + 6, 42 - riderY * 0.12, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, groundY + 6, 52 - riderY * 0.12, 9, 0, 0, Math.PI * 2); ctx.fill();
     /* Headlight beam, thrown up the wet road. */
-    var beam = ctx.createLinearGradient(0, y - 40, 0, y - 200);
+    var beam = ctx.createLinearGradient(0, y - 46, 0, y - 235);
     beam.addColorStop(0, "rgba(220,255,235,0.13)"); beam.addColorStop(1, "rgba(220,255,235,0)");
     ctx.fillStyle = beam;
     ctx.beginPath();
-    ctx.moveTo(x - 7, y - 38); ctx.lineTo(x + 7, y - 38);
-    ctx.lineTo(x + 36, y - 200); ctx.lineTo(x - 36, y - 200);
+    ctx.moveTo(x - 9, y - 46); ctx.lineTo(x + 9, y - 46);
+    ctx.lineTo(x + 44, y - 235); ctx.lineTo(x - 44, y - 235);
     ctx.closePath(); ctx.fill();
     var lean = Math.max(-0.05, Math.min(0.05, (laneX(lane, 1) - x) * 0.0012));
-    ctx.save(); ctx.translate(x, y); ctx.rotate(lean);
+    ctx.save(); ctx.translate(x, y); ctx.scale(1.25, 1.25); ctx.rotate(lean);
     /* Rear tire and its reflection streak on the wet road. */
     ctx.fillStyle = "rgba(255,70,50,0.15)";
     ctx.beginPath(); ctx.ellipse(0, 46, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
@@ -449,10 +449,13 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       var edw = ew * eScale, edh = eh * eScale;
       ctx.drawImage(envImg, (W - edw) / 2, (H - edh) / 2, edw, edh);
     }
-    /* Sky: generated storm plate over a painted gradient fallback. */
-    var skyGrad = ctx.createLinearGradient(0, 0, 0, HY + 8);
-    skyGrad.addColorStop(0, "#04101a"); skyGrad.addColorStop(1, "#0a2e22");
-    ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, HY + 8);
+    /* Sky fallback, painted ONLY when the environment plate has
+       not loaded: with the plate in, the artwork IS the sky. */
+    if (!envReady){
+      var skyGrad = ctx.createLinearGradient(0, 0, 0, HY + 8);
+      skyGrad.addColorStop(0, "#04101a"); skyGrad.addColorStop(1, "#0a2e22");
+      ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, HY + 8);
+    }
     if (!envReady && skyReady){
       var iw = skyImg.naturalWidth, ih = skyImg.naturalHeight;
       var scale = Math.max(W / iw, (HY + 26) / ih);
@@ -463,10 +466,12 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       ctx.fillStyle = "rgba(230,245,255," + ((calm ? 0 : 0.10) * (flash / 7)) + ")";
       ctx.fillRect(0, 0, W, HY + 8);
     }
-    /* Horizon glow where the road disappears into the storm. */
-    var hg = ctx.createRadialGradient(200, HY, 4, 200, HY, 130);
-    hg.addColorStop(0, "rgba(46,230,168,0.30)"); hg.addColorStop(1, "rgba(46,230,168,0)");
-    ctx.fillStyle = hg; ctx.fillRect(60, HY - 60, 280, 130);
+    /* Horizon glow, fallback only: the plate has its own glow. */
+    if (!envReady){
+      var hg = ctx.createRadialGradient(200, HY, 4, 200, HY, 130);
+      hg.addColorStop(0, "rgba(46,230,168,0.30)"); hg.addColorStop(1, "rgba(46,230,168,0)");
+      ctx.fillStyle = hg; ctx.fillRect(60, HY - 60, 280, 130);
+    }
     /* Ground beside the road (fallback only; the environment
        plate paints the city there when it is loaded). */
     if (!envReady){ ctx.fillStyle = "#030c07"; ctx.fillRect(0, HY, W, H - HY); }
