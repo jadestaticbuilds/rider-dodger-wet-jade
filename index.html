@@ -62,7 +62,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <header>
   <h1>RIDER DODGER</h1>
   <p class="tag">You are the rider. Rain is the enemy. Stay dry, go further.</p>
-  <div id="pilot">WET JADE PILOT · visual rebuild test · not the live game</div>
+  <div id="pilot">WET JADE PILOT v2 · visual rebuild test · not the live game</div>
 </header>
 <div id="hud"><span id="score">Distance: 0m</span><span id="hearts">💧💧💧</span><span id="best">Best: 0m</span></div>
 <div id="msg">Swipe left / right to change lane. Tap or swipe up to jump.</div>
@@ -71,6 +71,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   <button class="primary" id="startBtn">Start ride</button>
   <button id="pauseBtn">Pause</button>
   <button id="soundBtn">Sound: On</button>
+  <button id="calmBtn">Motion: Full</button>
 </div>
 <div id="pad">
   <button id="leftBtn" aria-label="Move left">◀</button>
@@ -108,6 +109,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   var best = load("rdw-best", 0);
   var runs = load("rdw-runs", []);
   var soundOn = load("rdw-sound", true);
+  var calm = load("rdw-calm", false);
   var state = "ready"; // ready | playing | paused | over
   var lane = 1, riderY = 0, vy = 0, jumping = false, riderX = 200;
   var distance = 0, speed = 2.0, spawnTimer = 0, tick = 0, elapsed = 0;
@@ -121,6 +123,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   var soundBtn = document.getElementById("soundBtn");
   var startBtn = document.getElementById("startBtn");
   var pauseBtn = document.getElementById("pauseBtn");
+  var calmBtn = document.getElementById("calmBtn");
 
   function renderRuns(){
     if (!runs.length) { runsEl.textContent = ""; return; }
@@ -236,7 +239,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   }
   /* Perspective helpers: z runs 0 (horizon) to 1 (at the rider).
      The power curve bunches depth near the horizon, like a real road. */
-  function persp(z){ return Math.pow(z, 2.1); }
+  function persp(z){ return Math.pow(z, 1.75); }
   function roadY(z){ return HY + (H - HY) * persp(z); }
   function roadHalf(z){ return 42 + 148 * persp(z); }
   function laneX(l, z){ return 200 + (l - 1) * roadHalf(z) * 0.6; }
@@ -270,9 +273,9 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       /* The bike eases toward its lane instead of teleporting, and
          leans into the change (Sasha's feel pass). */
       var tx = laneX(lane, 1);
-      riderX += (tx - riderX) * Math.min(1, 0.30 * dt);
+      riderX += (tx - riderX) * Math.min(1, 0.42 * dt);
       /* Tire spray while grounded. */
-      if (!jumping && !reduced && Math.random() < 0.7){
+      if (!jumping && !reduced && !calm && Math.random() < 0.35){
         particles.push({x: riderX + (Math.random()-0.5)*10, y: 486, vx:(Math.random()-0.5)*1.6, vy: 1 + Math.random()*2, life: 14, color: "#bff5dd"});
       }
       for (var i = obstacles.length - 1; i >= 0; i--){
@@ -309,7 +312,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     }
     /* Distant lightning, purely atmospheric. */
     if (flash > 0) flash -= dt;
-    else if (tick > nextFlash){ flash = 7; nextFlash = tick + 480 + Math.random() * 600; }
+    else if (tick > nextFlash){ flash = 7; nextFlash = tick + 900 + Math.random() * 900; }
     draw();
     requestAnimationFrame(step);
   }
@@ -335,7 +338,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     ctx.moveTo(x - 7, y - 38); ctx.lineTo(x + 7, y - 38);
     ctx.lineTo(x + 36, y - 200); ctx.lineTo(x - 36, y - 200);
     ctx.closePath(); ctx.fill();
-    var lean = Math.max(-0.09, Math.min(0.09, (laneX(lane, 1) - x) * 0.0016));
+    var lean = Math.max(-0.05, Math.min(0.05, (laneX(lane, 1) - x) * 0.0012));
     ctx.save(); ctx.translate(x, y); ctx.rotate(lean);
     /* Rear tire and its reflection streak on the wet road. */
     ctx.fillStyle = "rgba(255,70,50,0.15)";
@@ -442,7 +445,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       ctx.drawImage(skyImg, (W - dw) / 2, (HY + 26) - dh, dw, dh);
     }
     if (flash > 0){
-      ctx.fillStyle = "rgba(230,245,255," + (0.22 * (flash / 7)) + ")";
+      ctx.fillStyle = "rgba(230,245,255," + ((calm ? 0 : 0.10) * (flash / 7)) + ")";
       ctx.fillRect(0, 0, W, HY + 8);
     }
     /* Horizon glow where the road disappears into the storm. */
@@ -453,22 +456,22 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     ctx.fillStyle = "#030c07"; ctx.fillRect(0, HY, W, H - HY);
     /* Road bands: alternating wet asphalt shades, scrolling with
        distance so speed reads on the surface itself. */
-    var BANDS = 16, scrollFrac = (distance * 0.55) % 1;
+    var BANDS = 16, scrollFrac = (distance * (calm ? 0.22 : 0.38)) % 1;
     for (var b = BANDS - 1; b >= 0; b--){
       var f0 = (b + scrollFrac) / BANDS, f1 = (b + 1 + scrollFrac) / BANDS;
       if (f0 > 1) continue;
-      var zA = Math.pow(Math.min(f0, 1), 1 / 2.1), zB = Math.pow(Math.min(f1, 1), 1 / 2.1);
+      var zA = Math.pow(Math.min(f0, 1), 1 / 1.75), zB = Math.pow(Math.min(f1, 1), 1 / 1.75);
       var yA = roadY(zA), yB = roadY(zB);
       var hA = roadHalf(zA), hB = roadHalf(zB);
-      var wb = Math.floor(distance * 0.55) + b;
-      ctx.fillStyle = (wb % 2 === 0) ? "#0d2016" : "#08170f";
+      var wb = Math.floor(distance * (calm ? 0.22 : 0.38)) + b;
+      ctx.fillStyle = calm ? ((wb % 2 === 0) ? "#0b1c13" : "#0a1a11") : ((wb % 2 === 0) ? "#0d2016" : "#08170f");
       ctx.beginPath();
       ctx.moveTo(200 - hA, yA); ctx.lineTo(200 + hA, yA);
       ctx.lineTo(200 + hB, yB); ctx.lineTo(200 - hB, yB);
       ctx.closePath(); ctx.fill();
       /* Lane dividers as short dashes on alternating bands. */
       if (wb % 2 === 0){
-        ctx.fillStyle = "rgba(150,255,205,0.4)";
+        ctx.fillStyle = calm ? "rgba(150,255,205,0.2)" : "rgba(150,255,205,0.32)";
         [-0.3, 0.3].forEach(function(off){
           ctx.beginPath();
           ctx.moveTo(200 + off * hA - 1, yA); ctx.lineTo(200 + off * hA + 1, yA);
@@ -506,11 +509,12 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
       ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 3.4, 3.4);
     });
     /* Rain, in front of everything: fast slanted streaks. */
-    ctx.strokeStyle = "rgba(190,255,225,0.28)"; ctx.lineWidth = 1;
-    var rainN = reduced ? 12 : 30;
+    ctx.strokeStyle = calm ? "rgba(190,255,225,0.13)" : "rgba(190,255,225,0.2)"; ctx.lineWidth = 1;
+    var rainN = reduced ? 10 : (calm ? 12 : 22);
+    var rainSpd = calm ? 4 : 7;
     for (var s = 0; s < rainN; s++){
-      var sx = (s * 61 + tick * 3) % (W + 30) - 15, sy = (s * 43 + tick * 11) % H;
-      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - 3.5, sy + 13); ctx.stroke();
+      var sx = (s * 61 + tick * 2) % (W + 30) - 15, sy = (s * 43 + tick * rainSpd) % H;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - 2.5, sy + 11); ctx.stroke();
     }
     ctx.textAlign = "center";
     if (state === "ready"){
@@ -584,6 +588,11 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     soundBtn.textContent = soundOn ? "Sound: On" : "Sound: Off";
   });
   soundBtn.textContent = soundOn ? "Sound: On" : "Sound: Off";
+  calmBtn.addEventListener("click", function(){
+    calm = !calm; save("rdw-calm", calm);
+    calmBtn.textContent = calm ? "Motion: Calm" : "Motion: Full";
+  });
+  calmBtn.textContent = calm ? "Motion: Calm" : "Motion: Full";
   reset(); renderHud(); requestAnimationFrame(step);
 })();
 </script>
