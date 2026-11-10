@@ -62,7 +62,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <header>
   <h1>RIDER DODGER</h1>
   <p class="tag">You are the rider. Rain is the enemy. Stay dry, go further.</p>
-  <div id="pilot">WET JADE PILOT v9 · visual rebuild test · not the live game</div>
+  <div id="pilot">WET JADE PILOT v10 · visual rebuild test · not the live game</div>
 </header>
 <div id="hud"><span id="score">Distance: 0m</span><span id="hearts">💧💧💧</span><span id="best">Best: 0m</span></div>
 <div id="msg">Swipe left / right to change lane. Tap or swipe up to jump.</div>
@@ -83,7 +83,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <script>
 (function(){
   "use strict";
-  var W = 400, H = 520, HY = 270, ZC = 0.88;
+  var W = 400, H = 520, HY = 295, ZC = 0.88;
   var canvas = document.getElementById("game");
   var ctx = canvas.getContext("2d");
   function fitDpr(){
@@ -275,7 +275,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
      The power curve bunches depth near the horizon, like a real road. */
   function persp(z){ return Math.pow(z, 1.75); }
   function roadY(z){ return HY + (H - HY) * persp(z); }
-  function roadHalf(z){ return 6 + 95 * persp(z); }
+  function roadHalf(z){ return 5 + 190 * persp(z); }
   function laneX(l, z){ return 200 + (l - 1) * roadHalf(z) * 0.64; }
   var lastTs = 0, STEP_MS = 1000 / 60;
   function step(ts){
