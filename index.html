@@ -62,7 +62,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 <header>
   <h1>RIDER DODGER</h1>
   <p class="tag">You are the rider. Rain is the enemy. Stay dry, go further.</p>
-  <div id="pilot">WET JADE PILOT v4 · visual rebuild test · not the live game</div>
+  <div id="pilot">WET JADE PILOT v5 · visual rebuild test · not the live game</div>
 </header>
 <div id="hud"><span id="score">Distance: 0m</span><span id="hearts">💧💧💧</span><span id="best">Best: 0m</span></div>
 <div id="msg">Swipe left / right to change lane. Tap or swipe up to jump.</div>
@@ -106,7 +106,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
      plate plus painted ground until (or unless) it loads. */
   var envImg = new Image(), envReady = false;
   envImg.onload = function(){ envReady = true; };
-  envImg.src = "street-plate.webp";
+  envImg.src = "miami-plate.webp";
   function load(k, d){
     try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
   }
